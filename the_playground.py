@@ -2,12 +2,16 @@ import gzip
 import gensim
 import logging
 import random
+import os
+import sys
 
 """
-Word2Vec Test
+Word2Vec Playground
 --- 
 Loosely based off of the tutorial here.
 http://kavita-ganesan.com/gensim-word2vec-tutorial-starter-code
+---
+On my system I've got the entirety of English Wikipedia attached to this so watch out.
 """
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -18,10 +22,24 @@ def load():
     Was kind of hoping that I could make this have a littler loading bar.
     STDOUT seems to be locked or the system is having it's resources hogged.
     """
-    logging.info("Loading and decompressing the reviews_data.txt.gz file")
+    print("These files are available to use as a corpus:")
+    
+    file_list = []
+    for name in os.listdir("data"):
+        if name.split(".")[-1] == "gz":
+            file_list.append(name)
+
+    file_select = {}
+    for file in file_list:
+        short = file.split(".")[0]
+        file_select[short] = file
+        print("\t" + short)
+
+    filename = file_select[input("Choice: ")]
+    logging.info("Loading and decompressing the " + filename + " file")
     print("Loading", end="", flush=True)
     rev_count = 0
-    for _,v in enumerate(gzip.open("data/reviews_data.txt.gz")):
+    for _,v in enumerate(gzip.open("data/" + filename)):
         rev_count += 1
         if rev_count % 5000 == 0:
             print(end=".", flush=True)
@@ -79,9 +97,9 @@ def play():
     def scramble():
         scrambled = []
         sentence = input("Enter your sentence to scramble.\nS: ")
-        scrambliness = int(input("How many dis-similar are we allowed to be?\n[How many points away from the words]?: "))
+        scrambliness = int(input("How many orders of dissimilarity are we allowed to use?\n[How many points away from the words]?: "))
         for word in gensim.utils.simple_preprocess(sentence):
-            choice = random.randrange(0, scrambliness)
+            choice = random.randint(0, scrambliness - 1)
             chosen = model.wv.most_similar(positive=word, topn=scrambliness)[choice]
             scrambled.append(chosen[0])
         
@@ -98,10 +116,17 @@ def play():
 ---
 
         Valid commands are:
-        similar, compare, scramble, help and quit.
+        similar, compare, scramble, switch, help and quit.
 
         Have fun!
         """
+
+    # Switch the corpus that is in use
+    def switch_corpus():
+        nonlocal model
+        model = train(load())
+
+        return "Successfully switched model!\n" + instruct() 
 
     # Closes the program
     def close():
@@ -117,6 +142,7 @@ def play():
         "similar": similar,
         "compare": compare,
         "scramble": scramble,
+        "switch": switch_corpus,
         "help": instruct,
         "quit": close
     }
