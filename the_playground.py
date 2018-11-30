@@ -128,6 +128,14 @@ def play():
 
         return "Successfully switched model!\n" + instruct() 
 
+    def console():
+        print("Warning! You have left the UI environment.\nYou'll likely have to restart to return.\n[Welcome to advanced mode!]")
+        nonlocal model
+        import code
+        code.interact(local=locals())
+        return
+
+
     # Closes the program
     def close():
         print("Thanks for giving this a go!")
@@ -143,6 +151,7 @@ def play():
         "compare": compare,
         "scramble": scramble,
         "switch": switch_corpus,
+        "console": console,
         "help": instruct,
         "quit": close
     }
