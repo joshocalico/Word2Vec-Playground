@@ -2,7 +2,7 @@
 Having some fun learning about Word2Vec and the papers surrounding it for my research project.
 
 ## How do I use this wonderful mess?
-**Note:** _Though I use anaconda I'm pretty sure that any distribution of Python 3 provided that Gensim is available for it is compatible._
+**Note:** _I use Anaconda though any distribution of Python 3 provided that Gensim (Tested on 3.4.0) is available, it's compatible._
 
 To launch:
 `python the_playground.py`
