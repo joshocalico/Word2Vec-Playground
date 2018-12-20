@@ -4,11 +4,14 @@ import logging
 import random
 import os
 import sys
+from scipy.cluster.hierarchy import linkage, dendrogram
+from matplotlib import pyplot as plt
 
 """
 Word2Vec Playground
 --- 
-Loosely based off of the tutorial here.
+Original code loosely based off of the tutorial here.
+Mind you I've added a lot to make it more applicable to my research project.
 http://kavita-ganesan.com/gensim-word2vec-tutorial-starter-code
 ---
 On my system I've got the entirety of English Wikipedia attached to this so watch out.
@@ -16,26 +19,46 @@ On my system I've got the entirety of English Wikipedia attached to this so watc
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-def load():
+def select():
     """
-    Using a generator so your computer doesn't melt!
-    Was kind of hoping that I could make this have a littler loading bar.
-    STDOUT seems to be locked or the system is having it's resources hogged.
+    Selects a file to load
     """
     print("These files are available to use as a corpus:")
-    
+    print("*: indicates already trained.")
     file_list = []
     for name in os.listdir("data"):
         if name.split(".")[-1] == "gz":
             file_list.append(name)
 
+    preproc = []
+    for name in os.listdir("preprocessed"):
+        short = name.split(".")[0]
+        if name.split(".")[-1] == "model":
+            preproc.append(short)
+
     file_select = {}
     for file in file_list:
         short = file.split(".")[0]
         file_select[short] = file
-        print("\t" + short)
+        print("\t" + short + ("*" if short in preproc else ""))
 
-    filename = file_select[input("Choice: ")]
+    while True:
+        short = input("Choice: ")
+
+        if short in preproc:
+            logging.info("Found pretrained model for " + short)
+            return True, gensim.models.Word2Vec.load("preprocessed/" + short + ".model")
+        
+        if short in file_select.keys():
+            return False, file_select[short]
+        
+        print("Bad filename! Try again.")
+
+def load(filename):
+    """
+    Using a generator so your computer doesn't melt!
+    Was kind of hoping that I could make this have a littler loading bar.
+    """
     logging.info("Loading and decompressing the " + filename + " file")
     print("Loading", end="", flush=True)
     rev_count = 0
@@ -47,7 +70,7 @@ def load():
     print(flush=True)
     logging.info("Loaded " + str(rev_count) + " reviews.")
 
-def train(data):
+def train(data, filename):
     """
     Create the model. Pretty straightforward due to the API.
     """
@@ -61,6 +84,7 @@ def train(data):
     )
     logging.info("Training model.")
     model.train(data, total_examples=len(list(data)), epochs=10)
+    model.save("preprocessed/" + filename.split(".")[0] + ".model")
     return model
 
 def play():
@@ -72,7 +96,12 @@ def play():
     """
 
     # Setup the model
-    model = train(load())
+    pre, datafile = select()
+    model = gensim.models.Word2Vec()
+    if not pre:
+        model = train(load(datafile), datafile)
+    else:
+        model = datafile
 
     # Determine which words could be used (statistically) in place of a chosen word.
     def similar():
@@ -116,7 +145,7 @@ def play():
 ---
 
         Valid commands are:
-        similar, compare, scramble, switch, help and quit.
+        similar, compare, scramble, switch, cluster, help and quit.
 
         Have fun!
         """
@@ -124,7 +153,12 @@ def play():
     # Switch the corpus that is in use
     def switch_corpus():
         nonlocal model
-        model = train(load())
+        pre, datafile = select()
+        model = gensim.models.Word2Vec()
+        if not pre:
+            model = train(load(datafile), datafile)
+        else:
+            model = datafile
 
         return "Successfully switched model!\n" + instruct() 
 
@@ -145,6 +179,23 @@ def play():
     def bad_command():
         return "Invalid command! Type help for valid commands\n"
 
+    def cluster():
+        logging.info("Attempting to generate a hierarchy from vectors using agglomerative clustering")
+        agglom = linkage(model.wv.vectors)
+
+        logging.info("Constructing dendrogram from output")
+
+        plt.figure()
+
+        def label_word(vec):
+            return model.most_similar([ vec ], [], 1)[0]
+
+        dendrogram(agglom, leaf_label_func=model.wv)
+
+        logging.info("Showing result")
+
+        
+
     # The command dictionary/lookup table
     commands = {
         "similar": similar,
@@ -153,6 +204,7 @@ def play():
         "switch": switch_corpus,
         "console": console,
         "help": instruct,
+        "cluster": cluster,
         "quit": close
     }
 
@@ -165,7 +217,8 @@ def play():
             print(f())
         except SystemExit:
             raise SystemExit
-        except:
+        except Exception as e:
+            print(e.__traceback__)
             print("Bad input!\n")
 
 play()
